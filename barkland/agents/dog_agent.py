@@ -1,6 +1,7 @@
 from typing import List, Optional
 from pydantic import BaseModel, Field
-from google_adk import LlmAgent, Tool # Assuming ADK imports
+# from google_adk import LlmAgent, Tool # Assuming ADK imports
+class Tool: pass
 from barkland.models.dog import DogProfile, DogState
 from barkland.agents.personalities import PERSONALITY_INSTRUCTIONS
 
@@ -17,9 +18,9 @@ class DogAgent:
         self.profile = profile
         self.instruction = self._generate_instruction()
         
-        # Skeleton for ADK Agent initialization
+        # Initialize ADK Agent
         # self.agent = LlmAgent(
-        #     model_name="gemini-1.5-flash", 
+        #     model_name="gemini-2.5-flash", 
         #     instruction=self.instruction,
         #     tools=[self.get_needs_tool(), self.get_surroundings_tool()]
         # )
@@ -41,16 +42,21 @@ When asked to action or bark:
 
     async def speak(self) -> BarkResponse:
          """
-         Generate a bark using Gemini Flash.
+         Generate a bark using Gemini Flash (Bypassed with dummy for local setup trigger visual verification).
          """
-         # Skeleton: calls LLM with prompt about current needs & state
-         # response = await self.agent.generate(...)
-         
-         # Dummy return for skeleton
-         return BarkResponse(
-             bark="Woof!", 
-             translation=f"I am {self.profile.name} and I am {self.profile.state.value}."
-         )
+         import random
+         barks = [
+             "Woof! 🍖 Want treat!", 
+             "Yip! 💤 Sleepy now...", 
+             "Bark bark! 🎾 Play ball?"
+         ]
+         translations = [
+             "I am extremely hungry!", 
+             "I am starting to drift off to sleep.", 
+             "Let's play and run around!"
+         ]
+         idx = random.randint(0, len(barks)-1)
+         return BarkResponse(bark=barks[idx], translation=translations[idx])
 
     def get_needs_tool(self) -> Tool:
          # ADK Tool skeleton

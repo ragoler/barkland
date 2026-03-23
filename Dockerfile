@@ -5,10 +5,15 @@ WORKDIR /app
 # Install system dependencies if any
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    curl \
+    ca-certificates \
+    && curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+    && install -m 0755 kubectl /usr/local/bin/kubectl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy configuration files first for caching
 COPY pyproject.toml .
+COPY agentic-sandbox-client /app/agentic-sandbox-client
 
 # Create placeholder package directories for setuptools metadata discovery
 RUN mkdir -p barkland/models barkland/engine barkland/agents barkland/api barkland/output && \
@@ -20,7 +25,8 @@ RUN mkdir -p barkland/models barkland/engine barkland/agents barkland/api barkla
           barkland/output/__init__.py
 
 # Install dependencies
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir . && \
+    SETUPTOOLS_SCM_PRETEND_VERSION=0.1.0 pip install --no-cache-dir /app/agentic-sandbox-client
 
 # Copy source code
 COPY barkland/ ./barkland/

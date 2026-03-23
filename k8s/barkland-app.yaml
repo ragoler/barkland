@@ -1,9 +1,46 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: barkland-orchestrator-sa
+  namespace: barkland
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: barkland-orchestrator-role
+  namespace: barkland
+rules:
+  - apiGroups: ["extensions.agents.x-k8s.io"]
+    resources: ["sandboxclaims", "sandboxtemplates", "sandboxwarmpools"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  - apiGroups: ["agents.x-k8s.io"]
+    resources: ["sandboxes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: barkland-orchestrator-rolebinding
+  namespace: barkland
+subjects:
+  - kind: ServiceAccount
+    name: barkland-orchestrator-sa
+roleRef:
+  kind: Role
+  name: barkland-orchestrator-role
+  apiGroup: rbac.authorization.k8s.io
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: barkland-orchestrator
   namespace: barkland
 spec:
+  strategy:
+    type: Recreate
   replicas: 1 # Single orchestrator replica to maintain simulation loop state in memory
   selector:
     matchLabels:
@@ -15,6 +52,7 @@ spec:
         app: barkland
         component: orchestrator
     spec:
+      serviceAccountName: barkland-orchestrator-sa
       containers:
         - name: orchestrator
           image: us-central1-docker.pkg.dev/gke-ai-eco-dev/barkland/barkland:latest
