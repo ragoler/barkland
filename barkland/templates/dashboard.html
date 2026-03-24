@@ -489,13 +489,17 @@
             <div class="controls" style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
                 <div style="display: flex; gap: 12px; align-items: center;">
                     <!-- Counter Input -->
-                    <select id="dog-count" style="background: rgba(255,255,255,0.05); color: #94a3b8; border: 1px solid rgba(255,255,255,0.08); font-size: 0.8rem; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-family: 'Inter', sans-serif; outline: none; transition: all 0.2s;" onchange="this.blur()">
+                    <select id="dog-count" style="background: rgba(255,255,255,0.05); color: #94a3b8; border: 1px solid rgba(255,255,255,0.08); font-size: 0.8rem; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-family: 'Inter', sans-serif; outline: none; transition: all 0.2s;" onchange="this.blur(); checkDurationLimit();">
                         <option value="1">Agents: 1 Dog</option>
                         <option value="4" selected>Agents: 4 Dogs</option>
                         <option value="10">Agents: 10 Dogs</option>
                         <option value="20">Agents: 20 Dogs</option>
                         <option value="50">Agents: 50 Dogs</option>
                         <option value="99">Agents: 99 Dogs</option>
+                        <option value="120">Agents: 120 Dogs</option>
+                        <option value="150">Agents: 150 Dogs</option>
+                        <option value="200">Agents: 200 Dogs</option>
+                        <option value="300">Agents: 300 Dogs</option>
                     </select>
                     
                     <button class="btn btn-start" onclick="startSim()">
@@ -715,6 +719,31 @@
 
 
 
+        function checkDurationLimit() {
+            const countVal = parseInt(document.getElementById('dog-count').value) || 4;
+            const durationSelect = document.getElementById('duration-select');
+            
+            if (countVal >= 99) {
+                for (let i = 0; i < durationSelect.options.length; i++) {
+                    const val = parseInt(durationSelect.options[i].value);
+                    if (val > 0 && val < 180) {
+                        durationSelect.options[i].disabled = true;
+                    }
+                }
+                const currentVal = parseInt(durationSelect.value);
+                if (currentVal > 0 && currentVal < 180) {
+                    durationSelect.value = "180";
+                }
+            } else {
+                for (let i = 0; i < durationSelect.options.length; i++) {
+                    durationSelect.options[i].disabled = false;
+                }
+            }
+        }
+
+        // Run once on load to establish correct state based on default HTML selection
+        window.addEventListener('load', () => { checkDurationLimit(); });
+
         let simTimeout = null;
         let countdownInterval = null;
 
@@ -724,8 +753,17 @@
             // Extract count from input
             const countVal = parseInt(document.getElementById('dog-count').value) || 4;
             
-            if (countVal < 1 || countVal > 99) {
-                alert("Please select a dog count between 1 and 99.");
+            if (countVal < 1 || countVal > 300) {
+                alert("Please select a dog count between 1 and 300.");
+                document.querySelector('.btn-start').disabled = false;
+                return;
+            }
+
+            const durationSelect = document.getElementById('duration-select');
+            const durationVal = parseInt(durationSelect.value);
+
+            if (countVal >= 99 && durationVal > 0 && durationVal < 180) {
+                alert("For simulations with 99 or more dogs, the timer must be at least 180 seconds or Continuous.");
                 document.querySelector('.btn-start').disabled = false;
                 return;
             }

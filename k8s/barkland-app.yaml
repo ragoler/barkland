@@ -12,10 +12,10 @@ metadata:
 rules:
   - apiGroups: ["extensions.agents.x-k8s.io"]
     resources: ["sandboxclaims", "sandboxtemplates", "sandboxwarmpools"]
-    verbs: ["create", "get", "list", "watch", "delete"]
+    verbs: ["create", "get", "list", "watch", "patch", "update", "delete"]
   - apiGroups: ["agents.x-k8s.io"]
     resources: ["sandboxes"]
-    verbs: ["get", "list", "watch", "patch", "update"]
+    verbs: ["get", "list", "watch", "patch", "update", "delete"]
 
   - apiGroups: [""]
     resources: ["services"]
@@ -72,10 +72,10 @@ spec:
               value: "8000"
           resources:
             requests:
-              cpu: "1"
+              cpu: "2"
               memory: "2Gi"
             limits:
-              cpu: "1"
+              cpu: "2"
               memory: "2Gi"
 
 ---
