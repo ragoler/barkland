@@ -7,6 +7,7 @@ PROJECT_ID="gke-ai-eco-dev"
 LOCATION="us-central1"
 CLUSTER_NAME="tomer-barkland"
 NAMESPACE="barkland"
+REPO="barkland"
 
 if [ ! -d "../agent-sandbox" ]; then
     echo "=== [0/5] Cloning agent-sandbox from upstream ==="
@@ -21,10 +22,10 @@ kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -
 
 echo "=== [2b/5] Deploying agent-sandbox Prerequisite ==="
 # Build and Push Controller Image
-../agent-sandbox/dev/tools/push-images --image-prefix=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/
+(cd ../agent-sandbox && ./dev/tools/push-images --image-prefix=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/ --controller-only)
 
 # Deploy Controller to Kube
-../agent-sandbox/dev/tools/deploy-to-kube --image-prefix=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/
+(cd ../agent-sandbox && ./dev/tools/deploy-to-kube --image-prefix=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/)
 
 echo "Enabling extensions mode on agent-sandbox-controller..."
 kubectl patch deployment agent-sandbox-controller \
@@ -40,10 +41,12 @@ fi
 echo "Copying Sandbox Python SDK client..."
 cp -r ../agent-sandbox/clients/python/agentic-sandbox-client ./agentic-sandbox-client
 
-./scripts/push-images --image-prefix=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/
+./scripts/push-images --image-prefix=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/ --extra-image-tag latest
 
 echo "=== [4/5] Applying Kubernetes Manifests ==="
 kubectl apply -f k8s/
+kubectl rollout restart deployment/barkland-orchestrator -n barkland
+
 
 echo "=== [5/5] Verifying Deployment Status ==="
 kubectl rollout status deployment/barkland-orchestrator -n ${NAMESPACE}

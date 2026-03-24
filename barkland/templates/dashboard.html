@@ -120,6 +120,15 @@
             box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
         }
 
+        .btn-start:disabled {
+            background: #374151 !important;
+            box-shadow: none;
+            color: #94a3b8;
+            cursor: not-allowed;
+            transform: none !important;
+            opacity: 0.7;
+        }
+
         .btn-start:hover {
             box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
             transform: scale(1.05);
@@ -443,7 +452,7 @@
                 <div class="terminal-dot" style="background: #f59e0b;"></div>
                 <div class="terminal-dot" style="background: #10b981;"></div>
                 <span style="font-size: 0.85rem; font-weight: 600; color: #94a3b8; font-family: monospace; margin-left: 10px;">
-                    <i class="fa-solid fa-code" style="color: #4ade80;"></i> Sandbox Claim Controller Stream
+                    <i class="fa-solid fa-code" style="color: #4ade80;"></i> Kubernetes Sandbox Claim Controller Stream
                 </span>
             </div>
             
@@ -569,6 +578,7 @@
         let countdownInterval = null;
 
         async function startSim() {
+            document.querySelector('.btn-start').disabled = true;
             await fetch('/api/simulation/start', { method: 'POST' });
             
             if (simTimeout) clearTimeout(simTimeout);
@@ -614,6 +624,7 @@
         }
 
         async function stopSim() {
+            document.querySelector('.btn-start').disabled = false;
             if (simTimeout) clearTimeout(simTimeout);
             if (countdownInterval) clearInterval(countdownInterval);
             document.getElementById('countdown-timer').style.display = 'none';

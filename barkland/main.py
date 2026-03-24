@@ -106,6 +106,8 @@ async def run_simulation():
         if client:
              # Run in thread so exit deletion doesn't block async cleanup sequences
              threading.Thread(target=client.__exit__, args=(None, None, None), daemon=True).start()
+             
+    await broadcast_state()
 
 async def broadcast_state():
     # Simulate sandbox states for dashboard layout metrics

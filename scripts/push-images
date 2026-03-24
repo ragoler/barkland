@@ -87,7 +87,7 @@ def main(args):
     """Builds and pushes all discovered Docker images."""
     image_tag = args.image_tag or utils.get_image_tag()
     excluded_dirs = {"bin", "dev", "docs", "k8s", "site",
-                     "temp", "tests", "tmp", ".venv"}
+                     "temp", "tests", "tmp", ".venv", "agentic-sandbox-client"}
 
     if args.controller_only:
         # TODO: Implement an explicit inclusion strategy for controller only Dockerfile.
