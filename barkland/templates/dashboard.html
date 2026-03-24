@@ -489,14 +489,14 @@
             <div class="controls" style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
                 <div style="display: flex; gap: 12px; align-items: center;">
                     <!-- Counter Input -->
-                    <div id="combobox-container" style="position: relative; display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.04); padding: 8px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
-                        <i class="fa-solid fa-shield-dog" style="color: var(--neon-purple); font-size: 0.95rem;"></i>
-                        <span style="font-size: 0.8rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">Count:</span>
-                        <input type="text" id="dog-count" value="4" style="background: transparent; border: none; color: white; width: 85px; font-weight: 800; font-family: 'Outfit', sans-serif; font-size: 1.1rem; outline: none; text-align: center; padding: 0;" autocomplete="off">
-                        <i class="fa-solid fa-chevron-down" style="font-size: 0.75rem; color: #64748b; cursor: pointer; transition: transform 0.2s;" id="combobox-arrow"></i>
-                        <div id="dog-count-dropdown" class="combobox-dropdown" style="display: none; position: absolute; top: calc(100% + 8px); left: 0; width: 100%; background: rgba(15, 12, 41, 0.95); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); z-index: 1000; max-height: 200px; overflow-y: auto;">
-                        </div>
-                    </div>
+                    <select id="dog-count" style="background: rgba(255,255,255,0.05); color: #94a3b8; border: 1px solid rgba(255,255,255,0.08); font-size: 0.8rem; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-family: 'Inter', sans-serif; outline: none; transition: all 0.2s;" onchange="this.blur()">
+                        <option value="1">Agents: 1 Dog</option>
+                        <option value="4" selected>Agents: 4 Dogs</option>
+                        <option value="10">Agents: 10 Dogs</option>
+                        <option value="20">Agents: 20 Dogs</option>
+                        <option value="50">Agents: 50 Dogs</option>
+                        <option value="99">Agents: 99 Dogs</option>
+                    </select>
                     
                     <button class="btn btn-start" onclick="startSim()">
                         <i class="fa-solid fa-play"></i> Start Sim
@@ -505,7 +505,7 @@
                         <i class="fa-solid fa-pause"></i> Pause Sim
                     </button>
                 </div>
-                <select id="duration-select" style="background: rgba(255,255,255,0.05); color: #94a3b8; border: 1px solid rgba(255,255,255,0.08); font-size: 0.8rem; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-family: 'Inter', sans-serif; width: 100%; outline: none;" onchange="this.blur()">
+                <select id="duration-select" style="background: rgba(255,255,255,0.05); color: #94a3b8; border: 1px solid rgba(255,255,255,0.08); font-size: 0.8rem; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-family: 'Inter', sans-serif; width: 100%; outline: none;" onchange="this.blur()">
                     <option value="10">Timer: 10 Seconds</option>
                     <option value="30" selected>Timer: 30 Seconds</option>
                     <option value="60">Timer: 60 Seconds</option>
@@ -579,200 +579,141 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", () => {
-            const input = document.getElementById('dog-count');
-            const dropdown = document.getElementById('dog-count-dropdown');
-            const arrow = document.getElementById('combobox-arrow');
-            const container = document.getElementById('combobox-container');
-
-            if (!input || !dropdown) return;
-
-            // Populate dropdown
-            for (let i = 1; i <= 99; i++) {
-                const item = document.createElement('div');
-                item.className = 'combobox-item';
-                item.innerText = i;
-                if (i === 4) item.classList.add('selected');
-                
-                item.addEventListener('click', (e) => {
-                    input.value = i;
-                    toggleDropdown(false);
-                    document.querySelectorAll('.combobox-item').forEach(el => el.classList.remove('selected'));
-                    item.classList.add('selected');
-                    input.dispatchEvent(new Event('input', { bubbles: true }));
-                });
-                dropdown.appendChild(item);
-            }
-
-            const toggleDropdown = (show) => {
-                dropdown.style.display = show ? 'block' : 'none';
-                if(arrow) arrow.style.transform = show ? 'rotate(180deg)' : 'rotate(0deg)';
-                if (show) {
-                    const val = input.value;
-                    const items = dropdown.children;
-                    for (let item of items) {
-                        if (item.innerText === val) {
-                            item.scrollIntoView({ block: 'nearest' });
-                            item.classList.add('selected');
-                        } else {
-                            item.classList.remove('selected');
-                        }
-                    }
-                }
-            };
-
-            input.addEventListener('focus', () => toggleDropdown(true));
-            
-            if (arrow) {
-                arrow.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    toggleDropdown(dropdown.style.display !== 'block');
-                });
-            }
-
-            document.addEventListener('click', (e) => {
-                if (container && !container.contains(e.target)) {
-                    toggleDropdown(false);
-                }
-            });
-
-            input.addEventListener('input', (e) => {
-                const val = e.target.value;
-                const items = dropdown.children;
-                let found = false;
-                
-                for (let item of items) {
-                    if (item.innerText.startsWith(val)) {
-                        item.style.display = 'block';
-                        if (item.innerText === val && !found) {
-                            item.classList.add('selected');
-                            found = true;
-                        } else {
-                            item.classList.remove('selected');
-                        }
-                    } else {
-                        item.style.display = 'none';
-                    }
-                }
-                if (!val) {
-                    for (let item of items) item.style.display = 'block';
-                }
-            });
+            // Removed combobox initialization logic
         });
 
-        const wsUrl = `ws://${window.location.host}/ws`;
-        let ws = new WebSocket(wsUrl);
+        function connectWS() {
+            const wsUrl = `ws://${window.location.host}/ws`;
+            let ws = new WebSocket(wsUrl);
 
-        ws.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-            document.getElementById('tick-val').innerText = data.tick;
-            document.getElementById('dogs-val').innerText = data.dogs.length;
-            
-            // Render Terminal sandboxes
-            if (data.sandboxes) {
-                let running = 0, paused = 0, created = 0;
-                const termFeed = document.getElementById('terminal-feed');
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                document.getElementById('tick-val').innerText = data.tick;
+                document.getElementById('dogs-val').innerText = data.dogs.length;
                 
-                data.sandboxes.forEach(sb => {
-                    if(sb.status === 'Running') running++;
-                    if(sb.status === 'Paused') paused++;
-                    if(sb.status === 'Created') created++;
+                // Render Terminal sandboxes
+                if (data.sandboxes) {
+                    let running = 0, paused = 0, created = 0;
+                    const termFeed = document.getElementById('terminal-feed');
                     
-                    const timeStr = new Date().toLocaleTimeString();
-                    const line = document.createElement('div');
-                    line.className = 'terminal-log-line';
-                    line.style.marginTop = '4px';
-                    let statusColor = '#4ade80';
-                    if (sb.status === 'Paused') statusColor = '#f59e0b';
-                    if (sb.status === 'Created') statusColor = '#3b82f6';
+                    data.sandboxes.forEach(sb => {
+                        if(sb.status === 'Running') running++;
+                        if(sb.status === 'Paused') paused++;
+                        if(sb.status === 'Created') created++;
+                        
+                        const timeStr = new Date().toLocaleTimeString();
+                        const line = document.createElement('div');
+                        line.className = 'terminal-log-line';
+                        line.style.marginTop = '4px';
+                        let statusColor = '#4ade80';
+                        if (sb.status === 'Paused') statusColor = '#f59e0b';
+                        if (sb.status === 'Created') statusColor = '#3b82f6';
 
-                    line.innerHTML = `<span class="timestamp">[${timeStr}]</span> 
-                        <i class="fa-solid fa-cube" style="color: #94a3b8; font-size: 0.8rem;"></i> 
-                        <span style="color: #a855f7; font-weight:600;">${sb.dog_name}</span> <i class="fa-solid fa-arrow-right-long" style="font-size: 0.7rem; color: #6b7280;"></i> 
-                        <span style="color: #e2e8f0; font-family: monospace;">${sb.claim_name}</span> 
-                        <span style="color: #64748b; font-size: 0.75rem; margin-left: 6px; font-family: monospace;">(${sb.ip})</span>
-                        [<span style="color: ${statusColor}; font-weight: 600;">${sb.status}</span>]`;
+                        line.innerHTML = `<span class="timestamp">[${timeStr}]</span> 
+                            <i class="fa-solid fa-cube" style="color: #94a3b8; font-size: 0.8rem;"></i> 
+                            <span style="color: #a855f7; font-weight:600;">${sb.dog_name}</span> <i class="fa-solid fa-arrow-right-long" style="font-size: 0.7rem; color: #6b7280;"></i> 
+                            <span style="color: #e2e8f0; font-family: monospace;">${sb.claim_name}</span> 
+                            <span style="color: #64748b; font-size: 0.75rem; margin-left: 6px; font-family: monospace;">(${sb.ip})</span>
+                            [<span style="color: ${statusColor}; font-weight: 600;">${sb.status}</span>]`;
+                        
+                        termFeed.appendChild(line);
+                    });
                     
-                    termFeed.appendChild(line);
+                    document.getElementById('sb-running').innerText = running;
+                    document.getElementById('sb-paused').innerText = paused;
+                    document.getElementById('sb-created').innerText = created;
+                    
+                    // Auto scroll
+                    termFeed.scrollTop = termFeed.scrollHeight;
+                }
+
+                const grid = document.getElementById('dogs-grid');
+                grid.innerHTML = ''; // Rebuild Grid
+                
+                data.dogs.forEach(dog => {
+                    let statusColor = '#3b82f6';
+                    let stateAnim = '';
+                    const currentState = dog.state ? dog.state.toUpperCase() : '';
+                    if(currentState === 'SLEEPING') {
+                        statusColor = '#a855f7';
+                        stateAnim = '<i class="fa-regular fa-moon anim-sleep" style="margin-left:8px; font-size:0.9rem; position:relative;"></i>';
+                    }
+                    if(currentState === 'EATING') {
+                        statusColor = '#10b981';
+                        stateAnim = '<i class="fa-solid fa-utensils anim-eat" style="margin-left:8px; font-size:0.85rem;"></i>';
+                    }
+                    if(currentState === 'PLAYING') {
+                        statusColor = '#ec4899';
+                        stateAnim = '<i class="fa-solid fa-baseball-bat-ball anim-play" style="margin-left:8px; font-size:0.85rem;"></i>';
+                    }
+
+                    let flashClass = '';
+                    if (data.tick > 0 && data.tick <= 5) {
+                         flashClass = 'flash-animation';
+                    }
+
+                    const cardHtml = `
+                        <div class="glass-card dog-card">
+                            <div class="dog-header">
+                                <div>
+                                    <div class="dog-name" style="display:flex; align-items:center;">${dog.name} ${stateAnim}</div>
+                                    <div class="dog-breed">${dog.breed}</div>
+                                </div>
+                                <span class="status-badge" style="background: ${statusColor}22; color: ${statusColor}; border: 1px solid ${statusColor}44">
+                                    ${dog.state}
+                                </span>
+                            </div>
+
+                            <div class="needs-container">
+                                <div class="pie-column">
+                                    <div class="pie-chart" style="background: conic-gradient(#60a5fa 0% ${dog.needs.hunger}%, rgba(255,255,255,0.04) ${dog.needs.hunger}% 100%)">
+                                        <span>${Math.round(dog.needs.hunger)}%</span>
+                                    </div>
+                                    <div class="pie-label">Hunger</div>
+                                </div>
+                                <div class="pie-column">
+                                    <div class="pie-chart" style="background: conic-gradient(#c084fc 0% ${dog.needs.energy}%, rgba(255,255,255,0.04) ${dog.needs.energy}% 100%)">
+                                        <span>${Math.round(dog.needs.energy)}%</span>
+                                    </div>
+                                    <div class="pie-label">Energy</div>
+                                </div>
+                                <div class="pie-column">
+                                    <div class="pie-chart" style="background: conic-gradient(#f472b6 0% ${dog.needs.boredom}%, rgba(255,255,255,0.04) ${dog.needs.boredom}% 100%)">
+                                        <span>${Math.round(dog.needs.boredom)}%</span>
+                                    </div>
+                                    <div class="pie-label">Boredom</div>
+                                </div>
+                            </div>
+
+                            <div class="bark-box ${flashClass}">
+                                ${data.tick > 0 && data.tick <= 5 
+                                    ? `<i class="fa-solid fa-wand-magic-sparkles" style="color:var(--neon-purple); margin-right:6px;"></i> <b>Personality:</b> <span style="text-transform: uppercase; font-weight:800; color: #d8b4fe; margin-left:4px;">${dog.personality.replace('_', ' ')}</span>`
+                                    : (dog.latest_bark || "Thinking of barking...")}
+                            </div>
+                        </div>
+                    `;
+                    grid.innerHTML += cardHtml;
                 });
-                
-                document.getElementById('sb-running').innerText = running;
-                document.getElementById('sb-paused').innerText = paused;
-                document.getElementById('sb-created').innerText = created;
-                
-                // Auto scroll
-                termFeed.scrollTop = termFeed.scrollHeight;
-            }
+            };
 
-            const grid = document.getElementById('dogs-grid');
-            grid.innerHTML = ''; // Rebuild Grid
-            
-            data.dogs.forEach(dog => {
-                let statusColor = '#3b82f6';
-                let stateAnim = '';
-                const currentState = dog.state ? dog.state.toUpperCase() : '';
-                if(currentState === 'SLEEPING') {
-                    statusColor = '#a855f7';
-                    stateAnim = '<i class="fa-regular fa-moon anim-sleep" style="margin-left:8px; font-size:0.9rem; position:relative;"></i>';
-                }
-                if(currentState === 'EATING') {
-                    statusColor = '#10b981';
-                    stateAnim = '<i class="fa-solid fa-utensils anim-eat" style="margin-left:8px; font-size:0.85rem;"></i>';
-                }
-                if(currentState === 'PLAYING') {
-                    statusColor = '#ec4899';
-                    stateAnim = '<i class="fa-solid fa-baseball-bat-ball anim-play" style="margin-left:8px; font-size:0.85rem;"></i>';
-                }
+            ws.onclose = function(e) {
+                console.log('Socket is closed. Reconnect will be attempted in 1 second.', e.reason);
+                setTimeout(function() {
+                    connectWS();
+                }, 1000);
+            };
 
-                let flashClass = '';
-                // Flash personality for the first 5 ticks
-                if (data.tick > 0 && data.tick <= 5) {
-                     flashClass = 'flash-animation';
-                }
+            ws.onerror = function(err) {
+                console.error('Socket encountered error: ', err.message, 'Closing socket');
+                ws.close();
+            };
+        }
 
-                const cardHtml = `
-                    <div class="glass-card dog-card">
-                        <div class="dog-header">
-                            <div>
-                                <div class="dog-name" style="display:flex; align-items:center;">${dog.name} ${stateAnim}</div>
-                                <div class="dog-breed">${dog.breed}</div>
-                            </div>
-                            <span class="status-badge" style="background: ${statusColor}22; color: ${statusColor}; border: 1px solid ${statusColor}44">
-                                ${dog.state}
-                            </span>
-                        </div>
+        // Start connection
+        connectWS();
 
 
-                        <div class="needs-container">
-                            <div class="pie-column">
-                                <div class="pie-chart" style="background: conic-gradient(#60a5fa 0% ${dog.needs.hunger}%, rgba(255,255,255,0.04) ${dog.needs.hunger}% 100%)">
-                                    <span>${Math.round(dog.needs.hunger)}%</span>
-                                </div>
-                                <div class="pie-label">Hunger</div>
-                            </div>
-                            <div class="pie-column">
-                                <div class="pie-chart" style="background: conic-gradient(#c084fc 0% ${dog.needs.energy}%, rgba(255,255,255,0.04) ${dog.needs.energy}% 100%)">
-                                    <span>${Math.round(dog.needs.energy)}%</span>
-                                </div>
-                                <div class="pie-label">Energy</div>
-                            </div>
-                            <div class="pie-column">
-                                <div class="pie-chart" style="background: conic-gradient(#f472b6 0% ${dog.needs.boredom}%, rgba(255,255,255,0.04) ${dog.needs.boredom}% 100%)">
-                                    <span>${Math.round(dog.needs.boredom)}%</span>
-                                </div>
-                                <div class="pie-label">Boredom</div>
-                            </div>
-                        </div>
 
-                        <div class="bark-box ${flashClass}">
-                            ${data.tick > 0 && data.tick <= 5 
-                                ? `<i class="fa-solid fa-wand-magic-sparkles" style="color:var(--neon-purple); margin-right:6px;"></i> <b>Personality:</b> <span style="text-transform: uppercase; font-weight:800; color: #d8b4fe; margin-left:4px;">${dog.personality.replace('_', ' ')}</span>`
-                                : (dog.latest_bark || "Thinking of barking...")}
-                        </div>
-                    </div>
-                `;
-                grid.innerHTML += cardHtml;
-            });
-        };
 
         let simTimeout = null;
         let countdownInterval = null;

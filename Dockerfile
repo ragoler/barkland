@@ -25,9 +25,10 @@ RUN mkdir -p barkland/models barkland/engine barkland/agents barkland/api barkla
           barkland/output/__init__.py
 
 # Install dependencies
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir . && \
-    SETUPTOOLS_SCM_PRETEND_VERSION=0.1.0 pip install --no-cache-dir /app/agentic-sandbox-client
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip && \
+    pip install . && \
+    SETUPTOOLS_SCM_PRETEND_VERSION=0.1.0 pip install /app/agentic-sandbox-client
 
 
 # Copy source code

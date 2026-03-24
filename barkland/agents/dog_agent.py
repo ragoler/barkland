@@ -72,7 +72,7 @@ When asked to action or bark:
                        "and the 'translation' MUST be a short, funny dream description starting with 'Sleeping (Dreaming of...)' or similar."
                    )
 
-              response = client.models.generate_content(
+              response = await client.aio.models.generate_content(
                    model='gemini-2.5-flash',
                    contents=prompt,
                    config=types.GenerateContentConfig(

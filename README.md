@@ -33,6 +33,18 @@ Before deploying, ensure you have set up the following:
 -   **GKE Cluster**:
     *   Workload Identity **Enabled**.
     *   GKE Sandbox (gVisor) **Enabled** on your node pools.
+    *   **GKE Pod Snapshots**: Enabled on your cluster via:
+        ```bash
+        gcloud beta container clusters update <CLUSTER_NAME> --region <REGION> --enable-pod-snapshots
+        ```
+        And requiring a snapshot storage Bucket created via:
+        ```bash
+        gcloud storage buckets create "gs://<BUCKET_NAME>" \
+           --uniform-bucket-level-access \
+           --enable-hierarchical-namespace \
+           --soft-delete-duration=0d \
+           --location="<LOCATION>"
+        ```
 -   **Pre-installed agent-sandbox Controller**:
     *   The underlying `agent-sandbox` extension controllers must be active on the cluster to manage `SandboxClaims` and template injections.
 -   **Workload Identity Setup**:

@@ -45,9 +45,11 @@ def build_and_push_image_with_docker_buildx(args, service_name, srcdir, dockerfi
         "buildx",
         "build",
         "--progress=plain",
-        "--no-cache",
         f"--output=type={args.docker_build_output_type}",
     ]
+
+    if args.no_cache:
+        build_cmd.append("--no-cache")
 
     if args.docker_build_output_type == "registry":
         build_cmd.append("--platform=" + platforms)
@@ -148,6 +150,10 @@ if __name__ == "__main__":
                         help="Image tag for this build. If not set, a default tag is generated based on date and git commit",
                         type=str,
                         default=os.getenv("IMAGE_TAG"))
+    parser.add_argument("--no-cache",
+                        dest="no_cache",
+                        action="store_true",
+                        help="Build without using Docker layer cache.")
     args = parser.parse_args()
 
     if args.kind_cluster_name:

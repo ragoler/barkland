@@ -45,8 +45,9 @@ if [ ! -f "Dockerfile" ]; then
     exit 1
 fi
 
-echo "Copying Sandbox Python SDK client..."
-cp -r ../agent-sandbox/clients/python/agentic-sandbox-client ./agentic-sandbox-client
+# echo "Copying Sandbox Python SDK client..."
+# cp -r ../agent-sandbox/clients/python/agentic-sandbox-client ./agentic-sandbox-client
+
 
 ./scripts/push-images --image-prefix=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/ --extra-image-tag latest
 

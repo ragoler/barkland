@@ -77,9 +77,12 @@ def create_sandbox_for_dog(dog_name: str):
     if not SandboxClient:
          return
     try:
-         client = SandboxClient(template_name="dog-agent-template", namespace="barkland", api_url="http://sandbox-router-svc:8080")
+         import os
+         router_url = os.getenv("SANDBOX_ROUTER_URL", "http://sandbox-router-svc:8080")
+         client = SandboxClient(template_name="dog-agent-template", namespace="barkland", api_url=router_url)
          sandbox_clients[dog_name] = client
          client.__enter__()
+
          if not sim.is_running:
               # Race cleanup: if simulation stopped while waiting for claim allocation
               client.__exit__(None, None, None)
@@ -109,19 +112,11 @@ async def start_simulation(req: StartSimulationRequest):
          dog_agents.clear()
          sim.tick_count = 0 
          
-         # 3. Populate new dogs allocation
+         # 3. Generate new names layout
          names = generate_unique_dog_names(req.count)
-         for name in names:
-              breed = random.choice(DOG_BREEDS)
-              personality = random.choice(list(Personality))
-              state = random.choice(list(DogState))
-              dp = DogProfile(name=name, breed=breed, personality=personality, state=state)
-              sim.add_dog(dp)
-              # Link agent
-              dog_agents[name] = DogAgent(dp)
 
-         # 4. Run in background via asyncio task
-         asyncio.create_task(run_simulation())
+         # 4. Run in background via asyncio task passing names list
+         asyncio.create_task(run_simulation(names))
          return {"status": f"Simulation started with {req.count} dogs"}
     return {"status": "Simulation already running"}
 
@@ -130,20 +125,75 @@ def stop_simulation():
     sim.is_running = False
     return {"status": "Simulation stopped"}
 
-async def run_simulation():
+async def run_simulation(names: List[str]):
     sim.is_running = True
+    from barkland.agents.dog_agent import DogAgent
+    # generate_unique_dog_names is available globally in this file
     
-    # Start Sandbox claims background threads allocation
-    if SandboxClient:
-        for dog in sim.dogs.values():
-            if dog.name not in sandbox_clients:
-                 threading.Thread(target=create_sandbox_for_dog, args=(dog.name,), daemon=True).start()
-                 await asyncio.sleep(0.05) # 50ms sleep to prevent thundering herd
-                 
+    # 1. Start periodic updates while sandboxes are allocating
+    async def monitor_sandboxes():
+        while sim.is_running:
+            await broadcast_state()
+            has_pending = False
+            for name in sim.dogs.keys():
+                client = sandbox_clients.get(name)
+                if not client or not client.is_ready():
+                    has_pending = True
+                    break
+            # Wait, if all ready and all populated layout break setup Accuracy accurately
+            if not has_pending and len(sim.dogs) == len(names):
+                break
+            await asyncio.sleep(1)
+            
+    asyncio.create_task(monitor_sandboxes())
+
+    # 2. Populate new dogs allocation ITERATIVELY index-by-index Setup trigger Accuracy
+    
+
+    for name in names:
+         breed = random.choice(DOG_BREEDS)
+         personality = random.choice(list(Personality))
+         state = random.choice(list(DogState))
+         dp = DogProfile(name=name, breed=breed, personality=personality, state=state)
+         
+         sim.add_dog(dp)
+         dog_agents[name] = DogAgent(dp)
+         
+         # Start Sandbox claim thread allocation layout triggers Accuracy creators layout inaccuracies
+         if SandboxClient:
+              print(f"Spawning sandbox thread for {name}")
+              threading.Thread(target=create_sandbox_for_dog, args=(name,), daemon=True).start()
+              
+         # Broadcast immediately so UI renders this card individually layout Accurate triggers payout list Accurate setups
+         await broadcast_state()
+         #await asyncio.sleep(0.05) # 50ms stagger spacing rolling creation
+
     while sim.is_running and sim.tick_count < sim.config.num_ticks:
         await sim.step()
         
+        # Trigger Pause/Resume operations based on State transitions
+        for name, dog in sim.dogs.items():
+             client = sandbox_clients.get(name)
+             if client and getattr(client, "is_ready", lambda: False)():
+                  if dog.state == DogState.SLEEPING:
+                       if not getattr(client, "is_paused", False):
+                            try:
+                                 client.pause()
+                                 client.is_paused = True
+                                 print(f"Paused sandbox for dog {name}")
+                            except Exception as e:
+                                 print(f"Failed to pause sandbox for {name}: {e}")
+                  else:
+                       if getattr(client, "is_paused", False):
+                            try:
+                                 client.resume()
+                                 client.is_paused = False
+                                 print(f"Resumed sandbox for dog {name}")
+                            except Exception as e:
+                                 print(f"Failed to resume sandbox for {name}: {e}")
+
         # Trigger Whirlwind Talking lines every 3 tick cycles to avoid saturating limits too tightly
+
         if sim.tick_count > 5 and sim.tick_count % 3 == 0:
              tasks = []
              for name, dog in sim.dogs.items():
@@ -185,7 +235,7 @@ async def broadcast_state():
         if client:
             claim_name = client.claim_name or claim_name
             if client.is_ready():
-                 status = "Running" if dog.state.value != "SLEEPING" else "Paused"
+                 status = "Running" if dog.state != DogState.SLEEPING else "Paused"
                  ip = client.base_url or "Dynamic IP Ready"
             else:
                  status = "Bound" if getattr(client, "sandbox_name", None) else "Creating"
@@ -193,9 +243,13 @@ async def broadcast_state():
             # Fallback for mock view logic or triggers allocations pending
             status = "Allocating"
             if not SandboxClient:
-                 status = "Running" if dog.state.value != "SLEEPING" else "Paused"
+                 status = "Running" if dog.state != DogState.SLEEPING else "Paused"
                  ip = f"10.64.{i + 1}.12"
-                 
+            else:
+                 # When SandboxClient is imported, but client dict is still building.
+                 # Avoid showing "Allocating" eternally when actually stopping
+                 status = "Running" if dog.state != DogState.SLEEPING else "Paused"
+
         sandboxes.append({
             "dog_name": dog.name,
             "claim_name": claim_name,

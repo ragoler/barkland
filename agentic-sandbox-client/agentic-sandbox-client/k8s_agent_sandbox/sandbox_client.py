@@ -532,3 +532,28 @@ class SandboxClient:
             span.set_attribute("sandbox.file.exists", exists)
         return exists
 
+    def _patch_replicas(self, replicas: int):
+         """Helper to scale sandbox replicas using patch."""
+         if not self.sandbox_name:
+              self.sandbox_name = self._resolve_sandbox_name()
+         
+         logging.info(f"Scaling Sandbox '{self.sandbox_name}' in namespace '{self.namespace}' to replicas={replicas}...")
+         body = {"spec": {"replicas": replicas}}
+         self.custom_objects_api.patch_namespaced_custom_object(
+              group=SANDBOX_API_GROUP,
+              version=SANDBOX_API_VERSION,
+              namespace=self.namespace,
+              plural=SANDBOX_PLURAL_NAME,
+              name=self.sandbox_name,
+              body=body
+         )
+
+    def pause(self):
+         """Pauses the Sandbox by scaling replicas to 0."""
+         self._patch_replicas(0)
+
+    def resume(self):
+         """Resumes the Sandbox by scaling replicas to 1."""
+         self._patch_replicas(1)
+
+
