@@ -9,7 +9,7 @@ spec:
       runtimeClassName: gvisor # Enables GKE Sandbox (gvisor) on Autopilot
       containers:
         - name: agent
-          image: us-central1-docker.pkg.dev/gke-ai-eco-dev/barkland/barkland:latest
+          image: ${IMAGE_PREFIX}barkland:latest
           env:
             - name: GEMINI_API_KEY
               valueFrom:

@@ -45,7 +45,7 @@ Before deploying, ensure you have set up the following:
     *   Workload Identity **Enabled**.
     *   GKE Sandbox (gVisor) **Enabled** on your node pools.
 -   **Pre-installed agent-sandbox Controller**:
-    *   The underlying `agent-sandbox` extension controllers must be active on the cluster to manage `SandboxClaims` and template injections.
+    *   The `deploy.sh` script automatically installs the core and extensions components of `agent-sandbox` directly from the official GitHub releases.
 -   **Model Authentication (Choose One)**:
     *   **Option A: Workload Identity (Vertex AI)**: The `barkland-orchestrator-sa` Kubernetes Service Account must be mapped to a Google Service Account (GSA) with sufficient `Vertex AI User` permissions.
     *   **Option B: Gemini API Key**: Set `GEMINI_API_KEY` in your local environment. The deployment script uses this to create a Kubernetes secret for agent capabilities.
@@ -67,7 +67,8 @@ Before deploying, ensure you have created a `.configuration` file in the root of
 ```bash
 cat <<EOF > .configuration
 PROJECT_ID="your-project-id"
-LOCATION="us-central1"
+CLUSTER_LOCATION="us-central1-a" # e.g. Zone for the cluster
+REGISTRY_LOCATION="us-central1"  # e.g. Region for the Artifact Registry
 CLUSTER_NAME="your-cluster-name"
 NAMESPACE="barkland"
 REPO="barkland"
@@ -98,12 +99,12 @@ If you need to strictly separate your pushes, utilize:
 
 ```bash
 # Build and Push Container Images independently
-./scripts/push-images --image-prefix=us-central1-docker.pkg.dev/gke-ai-eco-dev/barkland/ --extra-image-tag latest
+./scripts/push-images --image-prefix=us-central1-docker.pkg.dev/your-project-id/barkland/ --extra-image-tag latest
 ```
 
 > [!NOTE]
 > The image pushing script assumes an Artifact Registry route consistent with:
-> `us-central1-docker.pkg.dev/<PROJECT_ID>/barkland`
+> `[REGISTRY_LOCATION]-docker.pkg.dev/[PROJECT_ID]/barkland`
 
 ---
 
