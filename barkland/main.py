@@ -69,8 +69,7 @@ def generate_unique_dog_names(count: int) -> List[str]:
     # Fallback padding if unique names didn't cover the quota
     while len(names_set) < count:
         names_set.add(f"Pup-{len(names_set) + 1}")
-        
-    return list(names_set)
+    return sorted(list(names_set))
 
 # Pre-populate defaults
 num_dogs = 4
