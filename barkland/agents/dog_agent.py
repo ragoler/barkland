@@ -1,4 +1,5 @@
 from typing import List, Optional
+import os
 from pydantic import BaseModel, Field
 from google_adk import LlmAgent, Tool # Assuming ADK imports
 from barkland.models.dog import DogProfile, DogState
