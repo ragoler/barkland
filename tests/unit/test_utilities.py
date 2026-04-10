@@ -2,7 +2,7 @@ import pytest
 import unittest.mock as mock
 from barkland.main import generate_unique_dog_names
 from barkland.models.dog import DogProfile, DogState, Personality, DogNeeds
-from barkland.agents.dog_agent import DogAgent
+from barkland.agents.dog_agent import DogAgent, BarkResponse
 
 def test_generate_unique_dog_names_count():
     # Test generating 5 names
@@ -34,6 +34,12 @@ async def test_speak_prompt_includes_sleeping_rule():
         mock_instance.aio.models.generate_content = mock.AsyncMock()
         mock_instance.aio.models.generate_content.return_value.text = '{"bark": "Zzz", "translation": "Sleeping (Dreaming of bacon)"}'
         
+        async def mock_run(prompt, response_schema=None):
+            full_contents = f"{agent.instruction}\n\n{prompt}"
+            await mock_instance.aio.models.generate_content(contents=full_contents)
+            return BarkResponse(bark="Zzz", translation="Sleeping (Dreaming of bacon)")
+        object.__setattr__(agent.agent, 'run', mock_run)
+        
         # Call speak
         response = await agent.speak()
         
@@ -59,6 +65,12 @@ async def test_speak_prompt_includes_eating_rule():
         mock_instance = MockClient.return_value
         mock_instance.aio.models.generate_content = mock.AsyncMock()
         mock_instance.aio.models.generate_content.return_value.text = '{"bark": "Crunch", "translation": "Yum"}'
+        
+        async def mock_run(prompt, response_schema=None):
+            full_contents = f"{agent.instruction}\n\n{prompt}"
+            await mock_instance.aio.models.generate_content(contents=full_contents)
+            return BarkResponse(bark="Crunch", translation="Yum")
+        object.__setattr__(agent.agent, 'run', mock_run)
         
         await agent.speak()
         

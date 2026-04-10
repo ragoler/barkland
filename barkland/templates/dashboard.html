@@ -209,13 +209,14 @@
         .dog-card {
             position: relative;
             overflow: hidden;
+            padding: 1rem !important;
         }
 
         .dog-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 1.5rem;
+            margin-bottom: 0.75rem;
         }
 
         .dog-name {
@@ -244,9 +245,9 @@
             display: flex;
             justify-content: space-around;
             gap: 8px;
-            margin-bottom: 1.2rem;
+            margin-bottom: 0.75rem;
             background: rgba(255,255,255,0.02);
-            padding: 12px;
+            padding: 8px;
             border-radius: 18px;
             border: 1px solid rgba(255,255,255,0.03);
         }
@@ -259,8 +260,8 @@
         }
 
         .pie-chart {
-            width: 54px;
-            height: 54px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -274,8 +275,8 @@
 
         .pie-chart::before {
             content: '';
-            width: 42px;
-            height: 42px;
+            width: 30px;
+            height: 30px;
             background: #202124; /* Match body gradient dark inner circle */
             border-radius: 50%;
             position: absolute;
@@ -476,6 +477,19 @@
             color: white;
             font-weight: 700;
         }
+        .split-layout {
+            display: flex;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        .left-pane {
+            flex: 7;
+            min-width: 0;
+        }
+        .right-pane {
+            flex: 3;
+            min-width: 0;
+        }
     </style>
 </head>
 <body>
@@ -544,41 +558,47 @@
             </div>
         </div>
 
-        <!-- Main Feed -->
-        <div>
-            <div class="grid-title">
-                <i class="fa-solid fa-bolt" style="color: var(--google-yellow)"></i>
-                Dashboard Feed
+        <div class="split-layout">
+            <div class="left-pane">
+                <!-- Main Feed -->
+                <div>
+                    <div class="grid-title">
+                        <i class="fa-solid fa-bolt" style="color: var(--google-yellow)"></i>
+                        Dashboard Feed
+                    </div>
+                    <div class="dogs-grid" id="dogs-grid">
+                        <!-- Inner dynamic items -->
+                    </div>
+                </div>
             </div>
-            <div class="dogs-grid" id="dogs-grid">
-                <!-- Inner dynamic items -->
+
+            <div class="right-pane">
+                <!-- Sandbox Terminal Monitor -->
+                <div class="glass-card terminal-card" id="sandbox-monitor" title="Real-time stream of Kubernetes Sandbox Custom Resources. Watch as isolated environments are dynamically provisioned, paused, and resumed.">
+                    <div class="terminal-header">
+                        <div class="terminal-dot" style="background: #EA4335;"></div>
+                        <div class="terminal-dot" style="background: #FBBC04;"></div>
+                        <div class="terminal-dot" style="background: #34A853;"></div>
+                        <span style="font-size: 0.85rem; font-weight: 600; color: #94a3b8; font-family: monospace; margin-left: 10px;">
+                            <i class="fa-solid fa-code" style="color: #34A853;"></i> Kubernetes Sandbox Claim Controller Stream
+                        </span>
+                    </div>
+                    
+                    <div class="terminal-stat-row">
+                        <div>Running [ <span id="sb-running" style="color: #34A853; font-weight:800;">0</span> ]</div>
+                        <div style="color: rgba(255,255,255,0.2)">|</div>
+                        <div>Paused [ <span id="sb-paused" style="color: #FBBC04; font-weight:800;">0</span> ]</div>
+                        <div style="color: rgba(255,255,255,0.2)">|</div>
+                        <div>Created [ <span id="sb-created" style="color: #4285F4; font-weight:800;">0</span> ]</div>
+                    </div>
+
+                    <div class="terminal-body" id="terminal-feed">
+                        <div class="terminal-log-line"><span class="timestamp">[19:46:00]</span> Establishing monitor stream...</div>
+                        <div class="terminal-log-line"><span class="timestamp">[19:46:01]</span> Sandbox claim tracker online.</div>
+                    </div>
+                </div>
             </div>
         </div>
-
-        <!-- Sandbox Terminal Monitor -->
-        <div class="glass-card terminal-card" id="sandbox-monitor" title="Real-time stream of Kubernetes Sandbox Custom Resources. Watch as isolated environments are dynamically provisioned, paused, and resumed.">
-            <div class="terminal-header">
-                <div class="terminal-dot" style="background: #EA4335;"></div>
-                <div class="terminal-dot" style="background: #FBBC04;"></div>
-                <div class="terminal-dot" style="background: #34A853;"></div>
-                <span style="font-size: 0.85rem; font-weight: 600; color: #94a3b8; font-family: monospace; margin-left: 10px;">
-                    <i class="fa-solid fa-code" style="color: #34A853;"></i> Kubernetes Sandbox Claim Controller Stream
-                </span>
-            </div>
-            
-            <div class="terminal-stat-row">
-                <div>Running [ <span id="sb-running" style="color: #34A853; font-weight:800;">0</span> ]</div>
-                <div style="color: rgba(255,255,255,0.2)">|</div>
-                <div>Paused [ <span id="sb-paused" style="color: #FBBC04; font-weight:800;">0</span> ]</div>
-                <div style="color: rgba(255,255,255,0.2)">|</div>
-                <div>Created [ <span id="sb-created" style="color: #4285F4; font-weight:800;">0</span> ]</div>
-            </div>
-
-            <div class="terminal-body" id="terminal-feed">
-                <div class="terminal-log-line"><span class="timestamp">[19:46:00]</span> Establishing monitor stream...</div>
-                <div class="terminal-log-line"><span class="timestamp">[19:46:01]</span> Sandbox claim tracker online.</div>
-            </div>
-    </div>
 
     <script>
         document.addEventListener("DOMContentLoaded", () => {
