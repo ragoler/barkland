@@ -37,10 +37,18 @@ echo "Installing Agent Sandbox ${AGENT_SANDBOX_VERSION}..."
 kubectl apply -f https://github.com/kubernetes-sigs/agent-sandbox/releases/download/${AGENT_SANDBOX_VERSION}/manifest.yaml
 kubectl apply -f https://github.com/kubernetes-sigs/agent-sandbox/releases/download/${AGENT_SANDBOX_VERSION}/extensions.yaml
 
-echo "Enabling extensions mode on agent-sandbox-controller..."
-kubectl patch deployment agent-sandbox-controller \
-    -n agent-sandbox-system \
-    -p '{"spec": {"template": {"spec": {"containers": [{"name": "agent-sandbox-controller", "args": ["--leader-elect=true", "--extensions=true"]}]}}}}'
+echo "Enabling extensions mode and setting high concurrency on agent-sandbox-controller..."
+kubectl patch deployment agent-sandbox-controller -n agent-sandbox-system --type='json' -p='[
+  {"op": "replace", "path": "/spec/template/spec/containers/0/args", "value": [
+    "--leader-elect=true",
+    "--extensions=true",
+    "--sandbox-concurrent-workers=600",
+    "--sandbox-claim-concurrent-workers=600",
+    "--sandbox-warm-pool-concurrent-workers=600",
+    "--kube-api-qps=600",
+    "--kube-api-burst=600"
+  ]}
+]'
 
 kubectl rollout status deployment/agent-sandbox-controller -n agent-sandbox-system
 

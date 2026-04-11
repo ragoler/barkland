@@ -437,8 +437,7 @@
             background: rgba(0,0,0,0.6);
             border-radius: 12px;
             padding: 1.5rem;
-            min-height: 200px;
-            max-height: 400px;
+            flex: 1;
             overflow-y: auto;
             border: 1px solid rgba(255,255,255,0.03);
             text-shadow: 0 0 5px rgba(74, 222, 128, 0.3);
@@ -503,12 +502,45 @@
             margin-top: 2rem;
         }
         .left-pane {
-            flex: 7;
+            flex: 1;
             min-width: 0;
         }
         .right-pane {
-            flex: 3;
-            min-width: 0;
+            position: fixed;
+            top: 0;
+            right: 0;
+            height: 100vh;
+            width: 50vw;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            border-left: 1px solid rgba(255,255,255,0.05);
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            transform: translateX(100%);
+            padding: 0;
+            box-sizing: border-box;
+        }
+        .right-pane.expanded {
+            transform: translateX(0);
+        }
+        .terminal-handle {
+            position: absolute;
+            top: 50%;
+            left: -40px;
+            width: 40px;
+            height: 150px;
+            background: #EA4335;
+            border-radius: 8px 0 0 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transform: translateY(-50%);
+            color: white;
+            box-shadow: -2px 0 5px rgba(0,0,0,0.3);
+            padding: 12px 0;
+            box-sizing: border-box;
         }
     </style>
 </head>
@@ -595,9 +627,13 @@
                 </div>
             </div>
 
-            <div class="right-pane">
+            <div class="right-pane" id="terminal-panel">
+                <div class="terminal-handle" onclick="toggleTerminal()">
+                    <i class="fa-solid fa-chevron-left"></i>
+                    <span style="font-size: 0.7rem; font-weight: 700; writing-mode: vertical-rl; text-orientation: mixed; margin-top: 8px; letter-spacing: 0.5px; text-transform: uppercase;">Cluster Monitoring</span>
+                </div>
                 <!-- Sandbox Terminal Monitor -->
-                <div class="glass-card terminal-card" id="sandbox-monitor" title="Real-time stream of Kubernetes Sandbox Custom Resources. Watch as isolated environments are dynamically provisioned, paused, and resumed.">
+                <div class="terminal-card" id="sandbox-monitor" style="height: 100%; box-sizing: border-box; margin-top: 0; border: none; border-radius: 0; padding: 2rem; display: flex; flex-direction: column;" title="Real-time stream of Kubernetes Sandbox Custom Resources. Watch as isolated environments are dynamically provisioned, paused, and resumed.">
                     <div class="terminal-header">
                         <div class="terminal-dot" style="background: #EA4335;"></div>
                         <div class="terminal-dot" style="background: #FBBC04;"></div>
@@ -624,6 +660,17 @@
         </div>
 
     <script>
+        function toggleTerminal() {
+            const panel = document.getElementById('terminal-panel');
+            panel.classList.toggle('expanded');
+            const icon = panel.querySelector('.terminal-handle i');
+            if (panel.classList.contains('expanded')) {
+                icon.className = 'fa-solid fa-chevron-right';
+            } else {
+                icon.className = 'fa-solid fa-chevron-left';
+            }
+        }
+
         document.addEventListener("DOMContentLoaded", () => {
             // Removed combobox initialization logic
         });

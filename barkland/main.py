@@ -5,6 +5,11 @@ import asyncio
 import os
 import random
 from pydantic import BaseModel, Field
+import logging
+import time
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 try:
     from dotenv import load_dotenv
@@ -94,25 +99,31 @@ def create_sandbox_for_dog(dog_name: str):
     """Background thread target to allocate SandboxClaim without item locks blocking FastAPI context triggers."""
     if not SandboxClient:
          return
-    try:
-         import os
-         router_url = os.getenv("SANDBOX_ROUTER_URL", "http://sandbox-router-svc:8080")
-         connection_config = SandboxDirectConnectionConfig(api_url=router_url)
-         client = SandboxClient(connection_config=connection_config)
-         
-         # Set placeholder for UI to show 'Creating' state
-         sandbox_clients[dog_name] = {"status": "Creating", "claim_name": f"barkland-sandbox-{dog_name.lower()}"}
-         
-         sandbox = client.create_sandbox(template="dog-agent-template", namespace="barkland")
-         sandbox_clients[dog_name] = sandbox
-
-         if not sim.is_running:
-              # Race cleanup: if simulation stopped while waiting for claim allocation
-              sandbox.terminate()
-              sandbox_clients.pop(dog_name, None)
-    except Exception as e:
-         print(f"Error creating sandbox for {dog_name}: {e}")
-         sandbox_clients.pop(dog_name, None)
+    import os
+    router_url = os.getenv("SANDBOX_ROUTER_URL", "http://sandbox-router-svc:8080")
+    connection_config = SandboxDirectConnectionConfig(api_url=router_url)
+    client = SandboxClient(connection_config=connection_config)
+    max_retries = 3
+    for attempt in range(max_retries):
+        sandbox_clients[dog_name] = {"status": "Creating", "claim_name": f"barkland-sandbox-{dog_name.lower()}"}
+        try:
+             sandbox = client.create_sandbox(template="dog-agent-template", namespace="barkland")
+             sandbox_clients[dog_name] = sandbox
+             
+             # Track resolution time for profiling
+             print(f"Sandbox bound for {dog_name} on attempt {attempt+1}")
+             break
+             
+        except Exception as e:
+             print(f"Attempt {attempt+1} failed creating sandbox for {dog_name}: {e}")
+             if attempt == max_retries - 1:
+                  print(f"Giving up on creating sandbox for {dog_name} after {max_retries} attempts.")
+                  sandbox_clients.pop(dog_name, None)
+             else:
+                  import random
+                  jitter = random.uniform(0.5, 1.2)
+                  print(f"Retrying sandbox creation for {dog_name} in {jitter:.2f} seconds...")
+                  time.sleep(jitter)
 
 @app.get("/api/dogs")
 def get_dogs():
@@ -158,6 +169,8 @@ def stop_simulation():
 
 def patch_sandbox_replicas(sandbox, replicas: int):
     try:
+        logger.info(f"Patching replicas to {replicas} for {sandbox.sandbox_id}...")
+        start_time = time.time()
         sandbox.connector.k8s_helper.custom_objects_api.patch_namespaced_custom_object(
             group="agents.x-k8s.io",
             version="v1alpha1",
@@ -166,6 +179,7 @@ def patch_sandbox_replicas(sandbox, replicas: int):
             name=sandbox.sandbox_id,
             body={"spec": {"replicas": replicas}}
         )
+        logger.info(f"Patched replicas for {sandbox.sandbox_id} in {time.time() - start_time:.2f}s")
     except Exception as e:
         print(f"Failed to patch replicas for {sandbox.sandbox_id}: {e}")
 
@@ -220,6 +234,9 @@ async def run_simulation(names: List[str]):
         
         # Trigger Pause/Resume operations based on State transitions
         for name, dog in sim.dogs.items():
+            if dog.ticks_in_state == 0:
+                logger.info(f"State Change: Dog {name} transitioned to {dog.state.value}")
+                
             client = sandbox_clients.get(name)
             # Ensure client is a Sandbox object and not the placeholder dict
             if client and not isinstance(client, dict):
@@ -267,7 +284,10 @@ async def run_simulation(names: List[str]):
                         async def speak_and_update(a_dog, an_agent):
                             try:
                                 # Fallback to mock if Gemini API takes too long
+                                logger.info(f"Calling speak for {a_dog.name}...")
+                                start_time = time.time()
                                 res = await asyncio.wait_for(an_agent.speak(), timeout=10.0)
+                                logger.info(f"Speak completed for {a_dog.name} in {time.time() - start_time:.2f}s")
                                 a_dog.latest_bark = f"{res.bark} <span style='font-weight: 600; color:#a855f7; display:block; margin-top:4px; font-size:0.8rem;'>({res.translation})</span>"
                             except asyncio.TimeoutError:
                                 print(f"Agent speak timed out for {a_dog.name}, falling back to mock.")
@@ -344,11 +364,12 @@ async def broadcast_state():
         ],
         "sandboxes": sandboxes
     }
-    for client in connected_clients:
+    for client in list(connected_clients):
         try:
              await client.send_json(state_update)
         except Exception:
-             connected_clients.remove(client)
+             if client in connected_clients:
+                 connected_clients.remove(client)
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

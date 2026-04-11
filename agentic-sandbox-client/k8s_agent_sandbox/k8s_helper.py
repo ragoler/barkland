@@ -106,8 +106,20 @@ class K8sHelper:
                         f"SandboxClaim '{claim_name}' was deleted while resolving sandbox name")
                 if event["type"] in ["ADDED", "MODIFIED"]:
                     claim_object = event['object']
-                    sandbox_status = claim_object.get(
-                        'status', {}).get('sandbox', {})
+                    status = claim_object.get('status', {})
+                    
+                    # Fail fast if claim failed
+                    conditions = status.get('conditions', [])
+                    for cond in conditions:
+                        if cond.get('type') == 'Ready' and cond.get('status') == 'False':
+                            reason = cond.get('reason', '')
+                            if reason in ['ReconcilerError', 'Failed']:
+                                message = cond.get('message', '')
+                                logging.error(f"SandboxClaim failed with reason {reason}: {message}")
+                                w.stop()
+                                raise Exception(f"SandboxClaim failed: {message}")
+                                
+                    sandbox_status = status.get('sandbox', {})
                     # Support both 'name' (standard) and 'Name' (legacy, before CRD rename in #440)
                     name = sandbox_status.get('name', '') or sandbox_status.get('Name', '')
                     if name:
