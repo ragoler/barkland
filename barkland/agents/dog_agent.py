@@ -22,7 +22,7 @@ class DogAgent:
         
         # Initialize ADK Agent
         self.agent = LlmAgent(
-            name=f"dog_agent_{self.profile.name.lower().replace(' ', '_')}",
+            name=f"dog_agent_{self.profile.name.lower().replace(' ', '_').replace('.', '')}",
             model="gemini-2.5-flash",
             instruction=self.instruction,
             tools=[self.get_needs_tool(), self.get_surroundings_tool()],
@@ -92,7 +92,11 @@ When asked to action or bark:
          except Exception as e:
               # Log error and fall back to mock responses
               print(f"ADK error: {e}. Falling back to mock responses.")
+              return self.get_mock_response()
 
+    def get_mock_response(self) -> BarkResponse:
+         import random
+         from barkland.models.dog import Personality, DogState
 
          mock_responses = {
 

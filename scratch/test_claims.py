@@ -25,7 +25,7 @@ def make_claim(i):
         print(f"Claim {i} failed: {e}")
 
 threads = []
-for i in range(99):
+for i in range(200):
     t = threading.Thread(target=make_claim, args=(i,))
     threads.append(t)
     t.start()

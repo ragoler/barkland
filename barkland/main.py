@@ -138,24 +138,36 @@ async def start_simulation(req: StartSimulationRequest):
         # 3. Generate new names layout
         names = generate_unique_dog_names(req.count)
 
-         # 4. Run in background via asyncio task passing names list
-         asyncio.create_task(run_simulation(names))
-         return {"status": f"Simulation started with {req.count} dogs"}
+        # 4. Run in background via asyncio task passing names list
+        asyncio.create_task(run_simulation(names))
+        return {"status": f"Simulation started with {req.count} dogs"}
     return {"status": "Simulation already running"}
 
 @app.post("/api/simulation/stop")
 def stop_simulation():
     sim.is_running = False
     
-    if not is_local:
-        import subprocess
-        print("Issuing aggressive namespace sandbox and claim cleanup on stop...")
-        try:
-            subprocess.run(["kubectl", "delete", "sandboxclaims", "--all", "-n", "barkland", "--wait=false"], check=False)
-        except Exception as e:
-            print(f"Kubectl cleanup skipped or failed: {e}")
+    # Cleanup old sandbox claims fully to prevent leaks and race conditions
+    for dog_name in list(sandbox_clients.keys()):
+        sandbox = sandbox_clients.pop(dog_name, None)
+        if sandbox:
+            print(f"Terminating sandbox for {dog_name} on stop...")
+            threading.Thread(target=sandbox.terminate, daemon=True).start()
         
-    return {"status": "Simulation stopped and sandboxes cleaned up"}
+    return {"status": "Simulation stopped and targeted cleanup initiated"}
+
+def patch_sandbox_replicas(sandbox, replicas: int):
+    try:
+        sandbox.connector.k8s_helper.custom_objects_api.patch_namespaced_custom_object(
+            group="agents.x-k8s.io",
+            version="v1alpha1",
+            namespace=sandbox.namespace,
+            plural="sandboxes",
+            name=sandbox.sandbox_id,
+            body={"spec": {"replicas": replicas}}
+        )
+    except Exception as e:
+        print(f"Failed to patch replicas for {sandbox.sandbox_id}: {e}")
 
 async def run_simulation(names: List[str]):
     sim.is_running = True
@@ -169,7 +181,8 @@ async def run_simulation(names: List[str]):
             has_pending = False
             for name in sim.dogs.keys():
                 client = sandbox_clients.get(name)
-                if not client or not client.is_ready():
+                # If client is missing or still the placeholder dict, it's pending
+                if not client or isinstance(client, dict):
                     has_pending = True
                     break
             # Wait, if all ready and all populated layout break setup Accuracy accurately
@@ -183,22 +196,24 @@ async def run_simulation(names: List[str]):
     
 
     for name in names:
-         breed = random.choice(DOG_BREEDS)
-         personality = random.choice(list(Personality))
-         state = random.choice(list(DogState))
-         dp = DogProfile(name=name, breed=breed, personality=personality, state=state)
+        if not sim.is_running:
+            break
+        breed = random.choice(DOG_BREEDS)
+        personality = random.choice(list(Personality))
+        state = random.choice(list(DogState))
+        dp = DogProfile(name=name, breed=breed, personality=personality, state=state)
+        
+        sim.add_dog(dp)
+        dog_agents[name] = DogAgent(dp)
          
-         sim.add_dog(dp)
-         dog_agents[name] = DogAgent(dp)
-         
-         # Start Sandbox claim thread allocation layout triggers Accuracy creators layout inaccuracies
-         if SandboxClient:
-              print(f"Spawning sandbox thread for {name}")
-              threading.Thread(target=create_sandbox_for_dog, args=(name,), daemon=True).start()
+        # Start Sandbox claim thread allocation layout triggers Accuracy creators layout inaccuracies
+        if SandboxClient:
+             print(f"Spawning sandbox thread for {name}")
+             threading.Thread(target=create_sandbox_for_dog, args=(name,), daemon=True).start()
               
-         # Broadcast immediately so UI renders this card individually layout Accurate triggers payout list Accurate setups
-         await broadcast_state()
-         #await asyncio.sleep(0.05) # 50ms stagger spacing rolling creation
+        # Broadcast immediately so UI renders this card individually layout Accurate triggers payout list Accurate setups
+        await broadcast_state()
+        #await asyncio.sleep(0.05) # 50ms stagger spacing rolling creation
 
     while sim.is_running and sim.tick_count < sim.config.num_ticks:
         await sim.step()
@@ -206,14 +221,15 @@ async def run_simulation(names: List[str]):
         # Trigger Pause/Resume operations based on State transitions
         for name, dog in sim.dogs.items():
             client = sandbox_clients.get(name)
-            if client and getattr(client, "is_ready", lambda: False)():
+            # Ensure client is a Sandbox object and not the placeholder dict
+            if client and not isinstance(client, dict):
                 if dog.state == DogState.SLEEPING:
                     if not getattr(client, "is_paused", False):
                         try:
                             client.is_paused = True # eagerly mark
                             print(f"Pausing sandbox for dog {name} in background...")
-                            # Run synchronous network request in background thread
-                            threading.Thread(target=client.pause, daemon=True).start()
+                            # Run K8s patch in background thread
+                            threading.Thread(target=patch_sandbox_replicas, args=(client, 0), daemon=True).start()
                         except Exception as e:
                             print(f"Failed to initiate pause for {name}: {e}")
                 else:
@@ -221,25 +237,47 @@ async def run_simulation(names: List[str]):
                         try:
                             client.is_paused = False # eagerly mark
                             print(f"Resuming sandbox for dog {name} in background...")
-                            # Run synchronous network request in background thread
-                            threading.Thread(target=client.resume, daemon=True).start()
+                            # Run K8s patch in background thread
+                            threading.Thread(target=patch_sandbox_replicas, args=(client, 1), daemon=True).start()
                         except Exception as e:
                             print(f"Failed to initiate resume for {name}: {e}")
 
-        # Trigger Whirlwind Talking lines every 3 tick cycles
-        if sim.tick_count > 5 and sim.tick_count % 3 == 0:
-            for name, dog in sim.dogs.items():
-                agent = dog_agents.get(name)
-                if agent:
-                    async def speak_and_update(a_dog, an_agent):
-                        try:
-                            res = await an_agent.speak()
-                            a_dog.latest_bark = f"{res.bark} <span style='font-weight: 600; color:#a855f7; display:block; margin-top:4px; font-size:0.8rem;'>({res.translation})</span>"
-                        except Exception as e:
-                            print(f"Agent speak error for {a_dog.name}: {e}")
-                    
-                    # Fire and forget instead of awaiting all generations simultaneously
-                    asyncio.create_task(speak_and_update(dog, agent))
+        # Trigger Whirlwind Talking lines every 2 tick cycles
+        if sim.tick_count > 0 and sim.tick_count % 2 == 0:
+            active_dogs = list(sim.dogs.items())
+            # Sort all dogs by name A-Z
+            active_dogs.sort(key=lambda x: x[0])
+            
+            num_dogs = len(active_dogs)
+            if num_dogs > 0:
+                # Calculate start index based on tick count (starting at tick 2)
+                cycle = (sim.tick_count - 1) // 2
+                start_idx = (cycle * 10) % num_dogs
+                
+                # Take a batch of 10 dogs, rotating through the list
+                batch_size = min(10, num_dogs)
+                speaking_dogs = []
+                for i in range(batch_size):
+                    idx = (start_idx + i) % num_dogs
+                    speaking_dogs.append(active_dogs[idx])
+                
+                for name, dog in speaking_dogs:
+                    agent = dog_agents.get(name)
+                    if agent:
+                        async def speak_and_update(a_dog, an_agent):
+                            try:
+                                # Fallback to mock if Gemini API takes too long
+                                res = await asyncio.wait_for(an_agent.speak(), timeout=10.0)
+                                a_dog.latest_bark = f"{res.bark} <span style='font-weight: 600; color:#a855f7; display:block; margin-top:4px; font-size:0.8rem;'>({res.translation})</span>"
+                            except asyncio.TimeoutError:
+                                print(f"Agent speak timed out for {a_dog.name}, falling back to mock.")
+                                res = an_agent.get_mock_response()
+                                a_dog.latest_bark = f"{res.bark} <span style='font-weight: 600; color:#a855f7; display:block; margin-top:4px; font-size:0.8rem;'>({res.translation})</span>"
+                            except Exception as e:
+                                print(f"Agent speak error for {a_dog.name}: {e}")
+                        
+                        # Fire and forget instead of awaiting all generations simultaneously
+                        asyncio.create_task(speak_and_update(dog, agent))
 
         await broadcast_state()
         await asyncio.sleep(sim.config.speed_ms / 1000.0)

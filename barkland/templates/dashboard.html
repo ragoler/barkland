@@ -146,6 +146,26 @@
             transform: scale(1.05);
         }
 
+        .btn-reset {
+            background: linear-gradient(135deg, #4285F4 0%, #357ae8 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(66, 133, 244, 0.3);
+        }
+
+        .btn-reset:hover {
+            box-shadow: 0 6px 20px rgba(66, 133, 244, 0.4);
+            transform: scale(1.05);
+        }
+
+        .btn-reset:disabled {
+            background: rgba(255, 255, 255, 0.05);
+            color: #64748b;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         /* Stats Bar */
         .stats-grid {
             display: grid;
@@ -521,6 +541,9 @@
                     <button class="btn btn-stop" title="Pause the simulation. Agent Sandbox scales down compute for inactive agents to save resources." onclick="stopSim()">
                         <i class="fa-solid fa-pause"></i> Pause Sim
                     </button>
+                    <button id="reset-btn" class="btn btn-reset" title="Reset UI components. Only works when simulation is stopped or paused." onclick="resetUI()">
+                        <i class="fa-solid fa-arrows-rotate"></i> Reset UI
+                    </button>
                 </div>
                 <select id="duration-select" title="Set the duration for the simulation. Useful for observing fast scale-up and scale-down of isolated agent environments." style="background: rgba(255,255,255,0.05); color: #94a3b8; border: 1px solid rgba(255,255,255,0.08); font-size: 0.8rem; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-family: 'Inter', sans-serif; width: 100%; outline: none;" onchange="this.blur()">
                     <option value="10">Timer: 10 Seconds</option>
@@ -768,6 +791,8 @@
 
         async function startSim() {
             document.querySelector('.btn-start').disabled = true;
+            const resetBtn = document.getElementById('reset-btn');
+            if (resetBtn) resetBtn.disabled = true;
             
             // Extract count from input
             const countVal = parseInt(document.getElementById('dog-count').value) || 4;
@@ -839,21 +864,46 @@
 
         async function stopSim() {
             const startBtn = document.querySelector('.btn-start');
+            const resetBtn = document.getElementById('reset-btn');
             startBtn.disabled = true;
             startBtn.style.opacity = '0.5';
             startBtn.style.cursor = 'not-allowed';
             startBtn.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> Replenishing...';
+            if (resetBtn) resetBtn.disabled = true;
             
             setTimeout(() => {
                 startBtn.disabled = false;
                 startBtn.style.opacity = '1';
                 startBtn.style.cursor = 'pointer';
                 startBtn.innerHTML = '<i class="fa-solid fa-play"></i> Start Sim';
+                if (resetBtn) resetBtn.disabled = false;
             }, 5000);
             if (simTimeout) clearTimeout(simTimeout);
             if (countdownInterval) clearInterval(countdownInterval);
             document.getElementById('countdown-timer').style.display = 'none';
             await fetch('/api/simulation/stop', { method: 'POST' });
+        }
+
+        function resetUI() {
+            const startBtn = document.querySelector('.btn-start');
+            if (startBtn.disabled || startBtn.innerText.includes("Replenishing")) {
+                alert("Cannot reset UI while simulation is running or replenishing!");
+                return;
+            }
+            
+            // Clear terminal feed
+            document.getElementById('terminal-feed').innerHTML = '';
+            
+            // Clear dogs grid
+            document.getElementById('dogs-grid').innerHTML = '';
+            
+            // Reset tick count
+            document.getElementById('tick-val').innerText = '0';
+            
+            // Reset active dogs count
+            document.getElementById('dogs-val').innerText = '0';
+            
+            alert("UI has been reset!");
         }
     </script>
 </body>
