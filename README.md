@@ -60,6 +60,16 @@ Before deploying, ensure you have set up the following:
 
 ---
 
+## 🔐 Secret Management
+
+Barkland uses a Kubernetes secret to securely manage the Gemini API key for the agents.
+
+*   **Secret Name**: `gemini-api-key`
+*   **Creation**: The `deploy.sh` script automatically creates or updates this secret in the target namespace if the `GEMINI_API_KEY` environment variable is set on your local machine (or in the `.configuration` file).
+*   **Usage**: The `barkland-orchestrator` deployment mounts this secret as an environment variable (`GEMINI_API_KEY`), which the Python code uses to authenticate with the Gemini API.
+
+---
+
 ## ☁️ Cloud Environment Setup
 
 If you are starting from a fresh project, follow these steps to provision the required Google Cloud resources.

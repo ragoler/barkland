@@ -345,7 +345,8 @@ async def broadcast_state():
             "dog_name": dog.name,
             "claim_name": claim_name,
             "status": status,
-            "ip": ip
+            "ip": ip,
+            "dog_state": dog.state.value
         })
 
     state_update = {

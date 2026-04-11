@@ -757,12 +757,21 @@
                         grid.appendChild(card);
                     }
                     
+                    const sb = data.sandboxes ? data.sandboxes.find(s => s.dog_name === dog.name) : null;
+                    const claimName = sb ? sb.claim_name : "No Claim";
+
                     card.className = `glass-card dog-card ${flashClass}`;
+                    
+                    let nameStyle = "display:flex; align-items:center;";
+                    if (currentState === 'SLEEPING') {
+                        nameStyle += " color: #64748b;";
+                    }
+
                     card.innerHTML = `
                         <div class="dog-header">
                             <div>
-                                <div class="dog-name" style="display:flex; align-items:center;">${dog.name} ${stateAnim}</div>
-                                <div class="dog-breed">${dog.breed}</div>
+                                <div class="dog-name" style="${nameStyle}">${dog.name} ${stateAnim}</div>
+                                <div class="dog-breed">${dog.breed} - ${claimName}</div>
                             </div>
                             <span class="status-badge" style="background: ${statusColor}22; color: ${statusColor}; border: 1px solid ${statusColor}44">
                                 ${dog.state}
