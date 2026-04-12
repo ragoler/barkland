@@ -7,6 +7,8 @@ import random
 from pydantic import BaseModel, Field
 import logging
 import time
+import shlex
+import subprocess
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -40,7 +42,37 @@ except ImportError:
     SandboxClient = None # Fallback for local testing without SDK
     SandboxDirectConnectionConfig = None
 
+class ExecuteRequest(BaseModel):
+    command: str
+
+class ExecuteResponse(BaseModel):
+    stdout: str
+    stderr: str
+    exit_code: int
+
 app = FastAPI()
+
+@app.post("/execute", response_model=ExecuteResponse)
+async def execute_command(request: ExecuteRequest):
+    try:
+        args = shlex.split(request.command)
+        process = subprocess.run(
+            args,
+            capture_output=True,
+            text=True,
+            cwd="/app"
+        )
+        return ExecuteResponse(
+            stdout=process.stdout,
+            stderr=process.stderr,
+            exit_code=process.returncode
+        )
+    except Exception as e:
+        return ExecuteResponse(
+            stdout="",
+            stderr=f"Failed to execute command: {str(e)}",
+            exit_code=1
+        )
 
 @app.get("/", response_class=HTMLResponse)
 async def get_dashboard():
@@ -101,13 +133,31 @@ def create_sandbox_for_dog(dog_name: str):
          return
     import os
     router_url = os.getenv("SANDBOX_ROUTER_URL", "http://sandbox-router-svc:8080")
-    connection_config = SandboxDirectConnectionConfig(api_url=router_url)
+    connection_config = SandboxDirectConnectionConfig(api_url=router_url, server_port=8000)
     client = SandboxClient(connection_config=connection_config)
     max_retries = 3
     for attempt in range(max_retries):
         sandbox_clients[dog_name] = {"status": "Creating", "claim_name": f"barkland-sandbox-{dog_name.lower()}"}
         try:
              sandbox = client.create_sandbox(template="dog-agent-template", namespace="barkland")
+             
+             # Wait for the sandbox to be reachable via the router
+             print(f"Waiting for sandbox {dog_name} to be reachable...")
+             import time
+             reach_retries = 5
+             for r in range(reach_retries):
+                 try:
+                     res = sandbox.commands.run("echo ready", timeout=2)
+                     if res.exit_code == 0:
+                         print(f"Sandbox {dog_name} is reachable!")
+                         break
+                 except Exception as reach_err:
+                     print(f"Sandbox {dog_name} not reachable yet (attempt {r+1}/{reach_retries}): {reach_err}")
+                     time.sleep(0.5)
+             else:
+                 print(f"Sandbox {dog_name} failed to become reachable in time.")
+                 raise Exception("Sandbox not reachable")
+
              sandbox_clients[dog_name] = sandbox
              
              # Track resolution time for profiling
@@ -284,10 +334,35 @@ async def run_simulation(names: List[str]):
                             try:
                                 logger.info(f"Calling speak for {a_dog.name} in thread...")
                                 start_time = time.time()
-                                import asyncio
-                                loop = asyncio.new_event_loop()
-                                res = loop.run_until_complete(an_agent.speak())
-                                loop.close()
+                                
+                                import json
+                                sandbox = sandbox_clients.get(a_dog.name)
+                                if sandbox and hasattr(sandbox, "commands") and sandbox.commands:
+                                    cmd = f"python -m barkland.agents.remote_speak --name '{a_dog.name}' --breed '{a_dog.breed}' --personality '{a_dog.personality.value}' --state '{a_dog.state.value}' --energy {a_dog.needs.energy} --hunger {a_dog.needs.hunger} --boredom {a_dog.needs.boredom}"
+                                    logger.info(f"Running command in sandbox for {a_dog.name}: {cmd}")
+                                    exec_res = sandbox.commands.run(cmd, timeout=120)
+                                    if exec_res.exit_code == 0:
+                                        try:
+                                            output = json.loads(exec_res.stdout)
+                                            if "error" in output:
+                                                logger.error(f"Remote speak error for {a_dog.name}: {output['error']}")
+                                                res = an_agent.get_mock_response()
+                                            else:
+                                                from barkland.agents.dog_agent import BarkResponse
+                                                res = BarkResponse(bark=output["bark"], translation=output["translation"])
+                                        except Exception as json_err:
+                                            logger.error(f"Failed to parse JSON from sandbox for {a_dog.name}: {json_err}. Raw output: {exec_res.stdout}")
+                                            res = an_agent.get_mock_response()
+                                    else:
+                                        logger.error(f"Command failed in sandbox for {a_dog.name} with exit code {exec_res.exit_code}: {exec_res.stderr}")
+                                        res = an_agent.get_mock_response()
+                                else:
+                                    logger.warning(f"No active sandbox or commands property for {a_dog.name}, falling back to local speak")
+                                    import asyncio
+                                    loop = asyncio.new_event_loop()
+                                    res = loop.run_until_complete(an_agent.speak())
+                                    loop.close()
+                                
                                 logger.info(f"Speak completed for {a_dog.name} in thread in {time.time() - start_time:.2f}s")
                                 a_dog.latest_bark = f"{res.bark} <span style='font-weight: 600; color:#a855f7; display:block; margin-top:4px; font-size:0.8rem;'>({res.translation})</span>"
                             except Exception as e:

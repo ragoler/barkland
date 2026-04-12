@@ -1,9 +1,9 @@
 Iftach request - ADK and prompts should come from the sandbox itself
-Button to clear the dashboard V
+Button to clear the dashboard - V
 take a snapshot and restore via dropdown
 Double check secret usage V
-More clarity on how sandbox are claimed - add the sandbox-claim-hash to each dog V
-Side panel for the logs V
-Density should be shown on the dog - maybe grey it out, add a hovering description, explanation as part of the UI 
+More clarity on how sandbox are claimed - add the sandbox-claim-hash to each dog - V
+Side panel for the logs-V
+Density should be shown on the dog - maybe grey it out, add a hovering description, explanation as part of the UI - V
 more measurements of latency and density on panels
 Possibly show Cloud Observabitily dashboard - Add intructions to look at it in the Readme

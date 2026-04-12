@@ -25,7 +25,7 @@ class DogAgent:
             name=f"dog_agent_{self.profile.name.lower().replace(' ', '_').replace('.', '')}",
             model="gemini-2.5-flash",
             instruction=self.instruction,
-            tools=[self.get_needs_tool(), self.get_surroundings_tool()],
+            tools=[self.get_needs_tool(), self.get_surroundings_tool(), self.get_sniff_tool()],
             output_schema=BarkResponse,
             output_key="bark_response"
         )
@@ -36,6 +36,7 @@ Your personality type is: {self.profile.personality.value}.
 
 Your core task is to express your current state and needs through barks, growls, and body language.
 You are in a simulation park.
+You can use tools to check your needs or sniff around for context.
 
 When asked to action or bark:
 1. Review your internal state (Needs, current state).
@@ -55,7 +56,7 @@ When asked to action or bark:
               f"React to your current state: {self.profile.state.name}. "
               "The 'bark' needs to be a short sound and action description. "
               "The 'translation' is your humorous internal monologue reflecting your personality and current state. "
-              "Keep it short and immersive."
+              "You can be influenced by the examples but invent your own style reflecting your personality, also keep it short."
          )
          if self.profile.state == DogState.SLEEPING:
               prompt += (
@@ -91,9 +92,8 @@ When asked to action or bark:
               
               raise Exception("Failed to get bark response from ADK")
          except Exception as e:
-              # Log error and fall back to mock responses
-              print(f"ADK error: {e}. Falling back to mock responses.")
-              return self.get_mock_response()
+              print(f"ADK error: {e}")
+              raise e
 
     def get_mock_response(self) -> BarkResponse:
          import random
@@ -160,3 +160,17 @@ When asked to action or bark:
               # Return other dogs state, etc.
               return {"simulation_time": "tick"}
          return check_surroundings
+
+    def get_sniff_tool(self) -> Callable:
+         def sniff_around():
+              """Sniff the ground to find interesting smells."""
+              import random
+              smells = [
+                  "a hint of bacon from a nearby picnic",
+                  "the distinct scent of a rival cat",
+                  "fresh grass and morning dew",
+                  "an old tennis ball buried nearby",
+                  "the trail of a squirrel"
+              ]
+              return {"smell": random.choice(smells)}
+         return sniff_around

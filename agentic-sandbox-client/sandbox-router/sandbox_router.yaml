@@ -38,7 +38,7 @@ spec:
               app: sandbox-router
       containers:
       - name: router
-        image: ${ROUTER_IMAGE}
+        image: us-central1-docker.pkg.dev/gke-ai-eco-dev/barkland/sandbox-router:latest
         # imagePullPolicy: Never  # Uncomment when using a locally loaded image (kind load / minikube image load)
         env:
         - name: PROXY_TIMEOUT_SECONDS
