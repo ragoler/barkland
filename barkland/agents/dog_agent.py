@@ -16,8 +16,15 @@ class DogAgent:
     Dog Agent wrapping an ADK LlmAgent with FSM.
     """
     def __init__(self, profile: DogProfile):
+        import time, random
         self.profile = profile
         self.instruction = self._generate_instruction()
+        self._cached_bark: Optional[BarkResponse] = None
+        self._bark_expiration: float = time.time() + random.uniform(0.0, 10.0)
+        
+    def needs_new_bark(self) -> bool:
+        import time
+        return time.time() > self._bark_expiration
         
         # Initialize ADK Agent
         # self.agent = LlmAgent(
@@ -41,10 +48,54 @@ When asked to action or bark:
 """
         return base
 
-    async def speak(self) -> BarkResponse:
+    async def speak(self, sandbox_client=None, ignore_cache=False) -> BarkResponse:
+         if not ignore_cache and not self.needs_new_bark():
+              return self._cached_bark
+              
+         import time
+         import random
+         res = await self._generate_bark(sandbox_client)
+         self._cached_bark = res
+         self._bark_expiration = time.time() + 15.0 + random.uniform(0.0, 10.0)
+         return res
+
+    async def _generate_bark(self, sandbox_client=None) -> BarkResponse:
          """
-         Generate a bark using Gemini Flash (Bypassed with dummy for local setup trigger visual verification).
+         Generate a bark using Gemini Flash, optionally routing securely to the remote Sandbox if one is provided.
          """
+         import os
+         
+         # 1. Sandbox Remote Execution Route (GKE production)
+         if sandbox_client and os.getenv("ENVIRONMENT", "").lower() != "local":
+              if not sandbox_client.is_ready():
+                  raise RuntimeError(f"Sandbox client for {self.profile.name} is not ready yet.")
+              import httpx
+              try:
+                   # The Sandbox platform uses a Gateway/Router pattern.
+                   # We send the request to the router, and it forwards to the correct pod on port 8000.
+                   base = sandbox_client.base_url if sandbox_client.base_url.startswith("http") else f"http://{sandbox_client.base_url}"
+                   url = f"{base}/api/dog/speak"
+                   headers = {
+                        "X-Sandbox-ID": sandbox_client.sandbox_name or sandbox_client.claim_name or "unknown",
+                        "X-Sandbox-Namespace": sandbox_client.namespace or "barkland",
+                        "X-Sandbox-Port": "8000",
+                   }
+                   
+                   # Serialize Pydantic profile state for JSON transmission
+                   async with httpx.AsyncClient(timeout=10.0) as http_client:
+                        from fastapi.encoders import jsonable_encoder
+                        payload = jsonable_encoder(self.profile)
+                        resp = await http_client.post(url, headers=headers, json=payload)
+                        resp.raise_for_status()
+                        data = resp.json()
+                        return BarkResponse(bark=data["bark"], translation=data["translation"])
+              except Exception as e:
+                   print(f"Network proxy error executing logic inside Sandbox Pod {self.profile.name}: {e}")
+                   # Do not silently fall back to native orchestration logic if Sandbox crashed mid-generation or failed.
+                   # We want to ensure speak() only runs on the Sandbox containers in production.
+                   raise e
+
+         # 2. Local Execution Route / Sandbox Native Generation Branch
          import random
          from barkland.models.dog import Personality, DogState
 

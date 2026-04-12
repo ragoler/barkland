@@ -43,6 +43,7 @@ async def get_dashboard():
 # In-memory Simulation Instance for simplicity
 config = SimulationConfig(num_ticks=500)
 sim = SimulationLoop(config)
+speak_semaphore = asyncio.Semaphore(4)
 
 # Pre-populate some dogs with random attributes
 DOG_PREFIXES = ["Sir", "Lady", "Captain", "Baron", "Count", "Professor", "Doctor", "Agent", "Chief", "Major"]
@@ -109,6 +110,15 @@ def create_sandbox_for_dog(dog_name: str):
 @app.get("/api/dogs")
 def get_dogs():
     return [dog.__dict__ for dog in sim.dogs.values()]
+
+from barkland.agents.dog_agent import BarkResponse
+@app.post("/api/dog/speak", response_model=BarkResponse)
+async def remote_dog_speak(profile: DogProfile):
+    """Execution endpoint accessed remotely by the Orchestrator to generate logic natively inside the gVisor sandbox footprint."""
+    from barkland.agents.dog_agent import DogAgent
+    agent = DogAgent(profile)
+    # We pass None to skip the sandbox proxy loop when running natively IN the sandbox
+    return await agent.speak(sandbox_client=None, ignore_cache=True)
 
 class StartSimulationRequest(BaseModel):
     count: int = Field(default=4, ge=1, le=200)
@@ -218,20 +228,50 @@ async def run_simulation(names: List[str]):
                         except Exception as e:
                             print(f"Failed to initiate resume for {name}: {e}")
 
-        # Trigger Whirlwind Talking lines every 3 tick cycles
-        if sim.tick_count > 5 and sim.tick_count % 3 == 0:
-            for name, dog in sim.dogs.items():
-                agent = dog_agents.get(name)
-                if agent:
-                    async def speak_and_update(a_dog, an_agent):
-                        try:
-                            res = await an_agent.speak()
-                            a_dog.latest_bark = f"{res.bark} <span style='font-weight: 600; color:#a855f7; display:block; margin-top:4px; font-size:0.8rem;'>({res.translation})</span>"
-                        except Exception as e:
-                            print(f"Agent speak error for {a_dog.name}: {e}")
+        # Trigger Whirlwind Talking lines for dogs that need a new bark
+        if sim.tick_count > 5:
+            if sim.dogs:
+                for name, dog in sim.dogs.items():
+                    agent = dog_agents.get(name)
+                    client = sandbox_clients.get(name)
                     
-                    # Fire and forget instead of awaiting all generations simultaneously
-                    asyncio.create_task(speak_and_update(dog, agent))
+                    if agent and agent.needs_new_bark():
+                        async def speak_and_update(a_dog, an_agent, a_client):
+                            was_paused = False
+                            print(f"[{a_dog.name}] Queuing for Gemini API (Semaphore block)...")
+                            async with speak_semaphore:
+                                try:
+                                    if a_client and not a_client.is_ready():
+                                        print(f"Skipping speak for {a_dog.name}, sandbox still provisioning...")
+                                        return
+                                        
+                                    if a_client and getattr(a_client, "is_paused", False):
+                                        print(f"[{a_dog.name}] Waking up paused sandbox temporarily to dream...")
+                                        a_client.is_paused = False
+                                        await asyncio.to_thread(a_client.resume)
+                                        was_paused = True
+                                        await asyncio.sleep(1) # Extra buffer for gVisor network layer recovery
+                                        
+                                    print(f"[{a_dog.name}] Attempting to speak via Gemini API...")
+                                    res = await an_agent.speak(sandbox_client=a_client)
+                                    if res:
+                                        a_dog.latest_bark = f"{res.bark} <span style='font-weight: 600; color:#a855f7; display:block; margin-top:4px; font-size:0.8rem;'>({res.translation})</span>"
+                                        print(f"[{a_dog.name}] Spoke successfully: {res.bark}")
+                                    
+                                    if was_paused and a_dog.state == DogState.SLEEPING:
+                                        print(f"[{a_dog.name}] Dream complete, returning to deep pause...")
+                                        a_client.is_paused = True
+                                        await asyncio.to_thread(a_client.pause)
+                                        
+                                except Exception as e:
+                                    print(f"[{a_dog.name}] Agent speak error: {e}")
+                                    # Ensure we pause it back if it crashed while temporarily woken
+                                    if was_paused and a_client:
+                                        a_client.is_paused = True
+                                        await asyncio.to_thread(a_client.pause)
+                        
+                        # Fire and forget instead of awaiting all generations simultaneously
+                        asyncio.create_task(speak_and_update(dog, agent, client))
 
         await broadcast_state()
         await asyncio.sleep(sim.config.speed_ms / 1000.0)
@@ -297,11 +337,14 @@ async def broadcast_state():
         ],
         "sandboxes": sandboxes
     }
-    for client in connected_clients:
+    for client in connected_clients.copy():
         try:
              await client.send_json(state_update)
         except Exception:
-             connected_clients.remove(client)
+             try:
+                 connected_clients.remove(client)
+             except ValueError:
+                 pass
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -313,4 +356,7 @@ async def websocket_endpoint(websocket: WebSocket):
          while True:
              await websocket.receive_text() # Keep connection alive or listen for commands
     except WebSocketDisconnect:
-         connected_clients.remove(websocket)
+         try:
+             connected_clients.remove(websocket)
+         except ValueError:
+             pass

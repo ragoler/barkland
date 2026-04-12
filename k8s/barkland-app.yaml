@@ -54,6 +54,7 @@ spec:
         component: orchestrator
     spec:
       serviceAccountName: barkland-orchestrator-sa
+      runtimeClassName: gvisor
       containers:
         - name: orchestrator
           image: ${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/barkland:latest
@@ -62,6 +63,8 @@ spec:
           env:
             - name: SPEED_MS
               value: "1000"
+            - name: SANDBOX_ROUTER_URL
+              value: "http://sandbox-router-svc:8080"
             - name: GEMINI_API_KEY
               valueFrom:
                 secretKeyRef:

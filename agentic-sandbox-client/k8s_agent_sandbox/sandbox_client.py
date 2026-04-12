@@ -119,7 +119,7 @@ class SandboxClient:
 
     def is_ready(self) -> bool:
         """Returns True if the sandbox is ready and the Gateway IP has been found."""
-        return self.base_url is not None
+        return self.base_url is not None and self.sandbox_name is not None
 
     @trace_span("create_claim")
     def _create_claim(self, trace_context_str: str = ""):

@@ -42,3 +42,29 @@ async def test_simulation_sleep_ratio(live_server_url):
     
     # Assert broadly to be safe against random walks
     assert 30 <= sleep_percent <= 80, f"Sleep ratio {sleep_percent}% out of bounds"
+
+@pytest.mark.asyncio
+async def test_sandbox_speak_route(live_server_url):
+    # Test that the sandbox /speak route properly parses profiles and returns the BarkResponse
+    payload = {
+        "name": "Integration Test Dog",
+        "breed": "Poodle",
+        "personality": "philosopher",
+        "state": "playing",
+        "needs": {
+            "energy": 80.0,
+            "hunger": 20.0,
+            "boredom": 10.0
+        },
+        "play_partner": None,
+        "ticks_in_state": 0,
+        "latest_bark": ""
+    }
+    
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(f"{live_server_url}/api/dog/speak", json=payload)
+        
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert "bark" in data
+        assert "translation" in data
